@@ -1,0 +1,23 @@
+{
+    "name": "php-baremetal/rtc-pcf85063",
+    "description": "PCF85063 real-time clock driver for ext-i2c (Baremetal\\I2c\\Driver\\Pcf85063).",
+    "type": "bm-lib",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Gianfrancesco Aurecchia",
+            "email": "gianfri@aurecchia.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.3",
+        "php-baremetal/ext-i2c": "^1.0"
+    },
+    "extra": {
+        "baremetal": {
+            "register": {
+                "i2c_drivers": ["pcf85063_driver_desc"]
+            }
+        }
+    }
+}
