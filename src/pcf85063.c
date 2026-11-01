@@ -13,16 +13,25 @@
 
 /* PCF85063 RTC. now() returns the current date/time; set() writes it. BCD registers. */
 #include "bm_i2c_driver.h"
+#include "pcf_time.h"
 #include "zend_exceptions.h"
 
 #define PCF_CTRL1   0x00
+/* Control_1 bits the driver clears: EXT_TEST, STOP, SR (software reset) and 12_24 (12-hour mode). CAP_SEL
+ * (the crystal load the board was designed for) and CIE are kept. */
+#define PCF_CTRL1_CLEAR 0xB2
 #define PCF_SECONDS 0x04   /* SECONDS..YEARS are 7 consecutive BCD registers */
 
 extern const i2c_driver_desc_t pcf85063_driver_desc;
 
 static bm_err_t pcf85063_init(i2c_dev_t *d)
 {
-    return i2c_dev_write_reg1(d, PCF_CTRL1, 0x00);   /* running, no correction */
+    uint8_t ctrl = 0;
+    bm_err_t e = i2c_dev_read_reg(d, PCF_CTRL1, &ctrl, 1);
+    if (e != BM_OK) {
+        return e;
+    }
+    return i2c_dev_write_reg1(d, PCF_CTRL1, ctrl & (uint8_t) ~PCF_CTRL1_CLEAR);   /* running, 24-hour */
 }
 
 static int bcd2dec(uint8_t v) { return (v >> 4) * 10 + (v & 0x0F); }
@@ -87,14 +96,23 @@ PHP_METHOD(Pcf85063, set)
         Z_PARAM_LONG(y) Z_PARAM_LONG(mo) Z_PARAM_LONG(da)
         Z_PARAM_LONG(h) Z_PARAM_LONG(mi) Z_PARAM_LONG(s)
     ZEND_PARSE_PARAMETERS_END();
+    static const char *const ranges[] = {
+        "must be between 2000 and 2099", "must be between 1 and 12", "is not a day of that month",
+        "must be between 0 and 23", "must be between 0 and 59", "must be between 0 and 59",
+    };
+    int bad = pcf_bad_field(y, mo, da, h, mi, s);
+    if (bad != 0) {
+        zend_argument_value_error(bad, "%s", ranges[bad - 1]);
+        RETURN_THROWS();
+    }
     i2c_dev_t *d = i2c_device_this(ZEND_THIS);
     if (!d) {
         RETURN_THROWS();
     }
     uint8_t b[7] = {
         dec2bcd((int) s), dec2bcd((int) mi), dec2bcd((int) h),
-        dec2bcd((int) da), 0 /* weekday, unused */, dec2bcd((int) mo),
-        dec2bcd((int) (y % 100)),
+        dec2bcd((int) da), (uint8_t) pcf_weekday(y, mo, da), dec2bcd((int) mo),
+        dec2bcd((int) (y - 2000)),
     };
     if (i2c_dev_write_reg(d, PCF_SECONDS, b, 7) != BM_OK) {
         zend_throw_exception(zend_ce_exception, "PCF85063 write failed", 0);

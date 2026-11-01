@@ -26,16 +26,17 @@ The bus the chip is wired to.
 7-bit address. The PCF85063 has a fixed address.
 <!-- @endparam -->
 <!-- @param name="$hz" type="int" default="400000" -->
-SCL clock for this device. A value of 0 or less uses 400 kHz.
+SCL clock for this device: 0 uses 400 kHz, otherwise 1 to 1000000 Hz (a negative value throws `\ValueError` from 1.0.2; earlier versions used 400 kHz).
 <!-- @endparam -->
 <!-- @endparams -->
 
-The constructor attaches the device and writes `0x00` to Control_1, which starts the clock if it was stopped and
-selects 24-hour mode. It throws `\Exception`:
+The constructor attaches the device, reads Control_1 and writes it back with the STOP, software-reset, test and
+12-hour bits cleared: the clock runs in 24-hour mode, and the crystal load setting (`CAP_SEL`) is left as the
+board set it. It throws `\Exception`:
 
 | Message | Cause |
 | --- | --- |
-| `cannot init pcf85063 at 0x..: ...` | The Control_1 write failed, for example `ESP_ERR_TIMEOUT` with no chip. |
+| `cannot init pcf85063 at 0x..: ...` | The Control_1 read or write failed, for example `ESP_ERR_TIMEOUT` with no chip. |
 | `address 0x.. on this bus is already used by another driver` | A raw device or another driver holds the address. |
 
 Constructing it again with the same bus and address returns a handle to the same device without writing again.
@@ -62,14 +63,12 @@ Throws `PCF85063 read failed`.
 
 <!-- @method name="Pcf85063::set(int $year, int $month, int $day, int $hour, int $minute, int $second): void" returns="void" visibility="public" -->
 
-Writes the date and time in one transaction. Only `$year % 100` is stored, so the year reads back as 2000 plus
-that. Writing the seconds clears the oscillator-stopped flag, so `now()['valid']` becomes `true`. The weekday
-register is written as 0. Throws `PCF85063 write failed`.
+Writes the date and time in one transaction, with the weekday computed from the date. Writing the seconds
+clears the oscillator-stopped flag, so `now()['valid']` becomes `true`. Throws `PCF85063 write failed`.
 
-<!-- @callout variant="warning" title="No range check" -->
-`set()` converts each argument to BCD as is. A negative or out-of-range value (month 13, hour 24) writes a
-register value the chip does not expect, and `now()` then returns nonsense. Validate in PHP first.
-<!-- @endcallout -->
+Every argument is checked first, and a value out of range throws `\ValueError` without writing anything:
+`$year` 2000 to 2099 (the chip stores two digits), `$month` 1 to 12, `$day` a day of that month (29 February
+only in leap years), `$hour` 0 to 23, `$minute` and `$second` 0 to 59.
 
 ## Example
 

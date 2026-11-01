@@ -132,13 +132,13 @@ the package is all it takes. `Bus::scan()` reports `pcf85063` for a device opene
 
 ## Notes
 
-- The constructor writes `0x00` to Control_1 (register `0x00`): clock running, 24-hour mode, no software
-  reset, and the 7 pF crystal load setting. It does not check the chip identity (the PCF85063 has none); a
-  missing chip fails that write and throws `cannot init pcf85063 at 0x51: ...`.
+- The constructor clears the STOP, software-reset, test and 12-hour bits of Control_1 (register `0x00`) and
+  keeps the others, including the crystal load setting: clock running, 24-hour mode. It does not check the chip
+  identity (the PCF85063 has none); a missing chip fails the read and throws `cannot init pcf85063 at 0x51: ...`.
 - `valid` is false while the chip's oscillator-stopped flag is set, i.e. the clock lost power since the last
   `set()`. The time read then is not meaningful.
-- `set()` does not validate its arguments and writes the weekday register as 0; `now()` does not return a
-  weekday. Compute it in PHP when you need it.
+- `set()` throws `\ValueError` for a date or time out of range (years 2000 to 2099) and writes the weekday
+  register from the date; `now()` does not return a weekday.
 - Failed transfers throw `\Exception` with `PCF85063 read failed` or `PCF85063 write failed`.
 - The driver only talks to the chip: it does not set the board's system clock, so `set()` does not change
   what PHP's `time()` returns, and `now()` is the way to read the RTC.
