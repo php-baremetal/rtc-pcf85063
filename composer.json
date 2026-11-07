@@ -17,7 +17,8 @@
         "baremetal": {
             "register": {
                 "i2c_drivers": ["pcf85063_driver_desc"]
-            }
+            },
+            "ide-stubs": ["ide/rtc-pcf85063.stub"]
         }
     }
 }

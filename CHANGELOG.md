@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0
+
+- Added: ide/rtc-pcf85063.stub, the PHP declarations of the package for IDEs (conductor copies it into vendor/php-baremetal/ide-stubs/).
+
 ## 1.0.2
 
 - Fixed: `set()` wrote any value as BCD, so a month of 13 or a negative hour left the chip with nonsense, and
